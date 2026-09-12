@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Auto Reply Tools</string>
+    <string name="accessibility_service_description">Finds messaging and AI controls using semantic accessibility properties.</string>
+    <string name="notification_listener_description">Receives Viber notifications for approved senders.</string>
+</resources>
