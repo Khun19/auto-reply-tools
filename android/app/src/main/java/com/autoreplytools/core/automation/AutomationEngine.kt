@@ -13,11 +13,11 @@ import com.autoreplytools.core.model.AutomationState
 import com.autoreplytools.core.model.AutomationTask
 import com.autoreplytools.core.model.AutomationTimeouts
 import com.autoreplytools.storage.SettingsRepository
-import kotlinx.coroutines.BufferOverflow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -165,8 +165,10 @@ class AutomationEngine(
         var previous: String? = null
         var stableCount = 0
         return withTimeoutOrNull(timeouts.waitResponseMs) {
-            while (true) {
-                val root = controller.awaitRoot(adapter.supportedPackages, 2_000L) ?: continue
+            var result: String? = null
+            while (result == null) {
+                val root = controller.awaitRoot(adapter.supportedPackages, 2_000L)
+                if (root == null) continue
                 if (adapter.isGenerating(root)) {
                     stableCount = 0
                     continue
@@ -174,8 +176,9 @@ class AutomationEngine(
                 val candidate = adapter.extractLatestResponse(before, root) ?: continue
                 if (candidate == previous) stableCount++ else stableCount = 0
                 previous = candidate
-                if (stableCount >= 2) return@withTimeoutOrNull candidate
+                if (stableCount >= 2) result = candidate
             }
+            result
         }
     }
 
