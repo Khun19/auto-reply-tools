@@ -1,6 +1,7 @@
 package com.autoreplytools.core.accessibility
 
 import android.view.accessibility.AccessibilityNodeInfo
+import java.util.ArrayDeque
 
 class NodeMatcher(
     private val scorer: NodeScorer = NodeScorer(),
@@ -8,19 +9,23 @@ class NodeMatcher(
     fun findBest(root: AccessibilityNodeInfo, query: NodeQuery): AccessibilityNodeInfo? {
         var best: AccessibilityNodeInfo? = null
         var bestScore = Int.MIN_VALUE
+        val pending = ArrayDeque<AccessibilityNodeInfo>()
+        pending.add(root)
+        var inspected = 0
 
-        fun visit(node: AccessibilityNodeInfo) {
+        while (pending.isNotEmpty() && inspected < query.maxNodes) {
+            val node = pending.removeLast()
+            inspected++
             val score = scorer.score(node, query)
-            if (score > bestScore) {
+            if (score != Int.MIN_VALUE && score > bestScore) {
                 bestScore = score
                 best = node
             }
-            for (index in 0 until node.childCount) {
-                node.getChild(index)?.let(::visit)
+            for (index in node.childCount - 1 downTo 0) {
+                node.getChild(index)?.let(pending::addLast)
             }
         }
 
-        visit(root)
-        return best?.takeIf { bestScore > 0 }
+        return best?.takeIf { bestScore >= query.minimumScore }
     }
 }
