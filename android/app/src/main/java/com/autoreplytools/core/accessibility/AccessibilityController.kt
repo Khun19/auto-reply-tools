@@ -15,11 +15,16 @@ class AccessibilityController(
         packageNames: Set<String>,
         timeoutMs: Long,
     ): AccessibilityNodeInfo? = withTimeoutOrNull(timeoutMs) {
-        while (true) {
+        var result: AccessibilityNodeInfo? = null
+        while (result == null) {
             val root = service.rootInActiveWindow
-            if (root != null && root.packageName?.toString() in packageNames) return@withTimeoutOrNull root
-            delay(300L)
+            if (root != null && root.packageName?.toString() in packageNames) {
+                result = root
+            } else {
+                delay(300L)
+            }
         }
+        result
     }
 
     suspend fun awaitNode(
@@ -27,13 +32,15 @@ class AccessibilityController(
         finder: (AccessibilityNodeInfo) -> AccessibilityNodeInfo?,
         timeoutMs: Long,
     ): AccessibilityNodeInfo? = withTimeoutOrNull(timeoutMs) {
-        while (true) {
+        var result: AccessibilityNodeInfo? = null
+        while (result == null) {
             val root = service.rootInActiveWindow
             if (root != null && root.packageName?.toString() in packageNames) {
-                finder(root)?.let { return@withTimeoutOrNull it }
+                result = finder(root)
             }
-            delay(300L)
+            if (result == null) delay(300L)
         }
+        result
     }
 
     fun setText(node: AccessibilityNodeInfo, text: String): Boolean {
