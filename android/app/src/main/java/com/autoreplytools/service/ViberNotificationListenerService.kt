@@ -18,25 +18,25 @@ class ViberNotificationListenerService : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onNotificationPosted(statusBarNotification: StatusBarNotification) {
-        if (statusBarNotification.packageName != VIBER_PACKAGE) return
         val notification = statusBarNotification.notification ?: return
-        if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
-
         val extras = notification.extras
-        val sender = extras.getString(Notification.EXTRA_TITLE)
-            ?: extras.getString(Notification.EXTRA_CONVERSATION_TITLE)
-            ?: return
-        val message = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-            ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-            ?: return
-        if (message.isBlank()) return
+        val accepted = ViberNotificationPolicy.accept(
+            ViberNotificationPolicy.Input(
+                packageName = statusBarNotification.packageName,
+                isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
+                sender = extras.getString(Notification.EXTRA_TITLE)
+                    ?: extras.getString(Notification.EXTRA_CONVERSATION_TITLE),
+                bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
+                text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
+                conversationId = extras.getString(Notification.EXTRA_CONVERSATION_TITLE),
+            ),
+        ) ?: return
 
-        val conversationId = extras.getString(Notification.EXTRA_CONVERSATION_TITLE)
         val task = AutomationTask(
             taskId = UUID.randomUUID().toString(),
-            sender = sender,
-            conversationId = conversationId,
-            originalMessage = message,
+            sender = accepted.sender,
+            conversationId = accepted.conversationId,
+            originalMessage = accepted.message,
             timestamp = statusBarNotification.postTime,
             sourcePackage = statusBarNotification.packageName,
             targetAiProvider = AiProvider.CHATGPT,
@@ -50,8 +50,4 @@ class ViberNotificationListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(statusBarNotification: StatusBarNotification) = Unit
-
-    companion object {
-        private const val VIBER_PACKAGE = "com.viber.voip"
-    }
 }
