@@ -43,6 +43,7 @@ abstract class SemanticAiAdapter(
                 enabled = true,
                 semanticTerms = inputTerms,
                 classNames = setOf("android.widget.EditText"),
+                minimumScore = 60,
             ),
         ) ?: matcher.findBest(
             root,
@@ -51,6 +52,7 @@ abstract class SemanticAiAdapter(
                 visible = true,
                 enabled = true,
                 semanticTerms = inputTerms,
+                minimumScore = 50,
             ),
         )
 
@@ -62,6 +64,7 @@ abstract class SemanticAiAdapter(
                 visible = true,
                 enabled = true,
                 semanticTerms = sendTerms,
+                minimumScore = 55,
             ),
         )
 

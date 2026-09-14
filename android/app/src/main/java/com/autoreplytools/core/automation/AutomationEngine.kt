@@ -8,7 +8,6 @@ import com.autoreplytools.core.adapters.GeminiAdapter
 import com.autoreplytools.core.adapters.ViberAdapter
 import com.autoreplytools.core.logging.AppLogger
 import com.autoreplytools.core.model.AiProvider
-import com.autoreplytools.core.model.AppSettings
 import com.autoreplytools.core.model.AutomationState
 import com.autoreplytools.core.model.AutomationTask
 import com.autoreplytools.core.model.AutomationTimeouts
@@ -95,20 +94,27 @@ class AutomationEngine(
             val beforeSnapshot = com.autoreplytools.core.text.TextExtractor().collect(beforeRoot)
 
             transition(AutomationState.PASTE_TO_AI)
-            val aiInput = controller.awaitNode(
-                aiAdapter.supportedPackages,
-                aiAdapter::findInput,
-                timeouts.pasteMs,
-            ) ?: return@withTimeoutOrNull false
-            if (!controller.setText(aiInput, task.originalMessage)) return@withTimeoutOrNull false
+            val aiTextResult = controller.setTextWithRetry(
+                packageNames = aiAdapter.supportedPackages,
+                finder = aiAdapter::findInput,
+                text = task.originalMessage,
+                timeoutMs = timeouts.pasteMs,
+            )
+            if (!aiTextResult.succeeded) {
+                logger.warn(aiTextResult.failureReason ?: "AI text insertion failed")
+                return@withTimeoutOrNull false
+            }
 
             transition(AutomationState.SEND_TO_AI)
-            val aiSend = controller.awaitNode(
-                aiAdapter.supportedPackages,
-                aiAdapter::findSend,
-                timeouts.sendMs,
-            ) ?: return@withTimeoutOrNull false
-            if (!controller.click(aiSend)) return@withTimeoutOrNull false
+            val aiClickResult = controller.clickWithRetry(
+                packageNames = aiAdapter.supportedPackages,
+                finder = aiAdapter::findSend,
+                timeoutMs = timeouts.sendMs,
+            )
+            if (!aiClickResult.succeeded) {
+                logger.warn(aiClickResult.failureReason ?: "AI send action failed")
+                return@withTimeoutOrNull false
+            }
 
             transition(AutomationState.WAIT_AI_RESPONSE)
             val response = awaitResponse(controller, aiAdapter, beforeSnapshot)
@@ -131,20 +137,27 @@ class AutomationEngine(
             controller.awaitRoot(viberAdapter.supportedPackages, timeouts.openAppMs)
                 ?: return@withTimeoutOrNull false
             transition(AutomationState.PASTE_TO_VIBER)
-            val viberInput = controller.awaitNode(
-                viberAdapter.supportedPackages,
-                viberAdapter::findInput,
-                timeouts.pasteMs,
-            ) ?: return@withTimeoutOrNull false
-            if (!controller.setText(viberInput, response)) return@withTimeoutOrNull false
+            val viberTextResult = controller.setTextWithRetry(
+                packageNames = viberAdapter.supportedPackages,
+                finder = viberAdapter::findInput,
+                text = response,
+                timeoutMs = timeouts.pasteMs,
+            )
+            if (!viberTextResult.succeeded) {
+                logger.warn(viberTextResult.failureReason ?: "Viber text insertion failed")
+                return@withTimeoutOrNull false
+            }
 
             transition(AutomationState.SEND_TO_VIBER)
-            val viberSend = controller.awaitNode(
-                viberAdapter.supportedPackages,
-                viberAdapter::findSend,
-                timeouts.sendMs,
-            ) ?: return@withTimeoutOrNull false
-            if (!controller.click(viberSend)) return@withTimeoutOrNull false
+            val viberClickResult = controller.clickWithRetry(
+                packageNames = viberAdapter.supportedPackages,
+                finder = viberAdapter::findSend,
+                timeoutMs = timeouts.sendMs,
+            )
+            if (!viberClickResult.succeeded) {
+                logger.warn(viberClickResult.failureReason ?: "Viber send action failed")
+                return@withTimeoutOrNull false
+            }
 
             transition(AutomationState.VERIFY)
             val verified = verifySend(controller, viberAdapter, response)

@@ -14,15 +14,15 @@ class NodeScorer {
         var score = 0
         if (node.isVisibleToUser) score += 10
         if (node.isEnabled) score += 10
-        if (node.isEditable) score += 50
-        if (node.isClickable) score += 20
-        if (node.className?.toString() in query.classNames) score += 15
+        if (node.isEditable) score += 40
+        if (node.isClickable) score += 30
+        if (node.className?.toString() in query.classNames) score += 25
 
-        val searchable = listOfNotNull(node.text?.toString(), node.contentDescription?.toString())
-            .joinToString(" ")
-            .lowercase()
+        val text = node.text?.toString()
+        val contentDescription = node.contentDescription?.toString()
         query.semanticTerms.forEach { term ->
-            if (searchable.contains(term.lowercase())) score += 20
+            if (SemanticText.containsTerm(text, term)) score += 25
+            if (SemanticText.containsTerm(contentDescription, term)) score += 35
         }
         return score
     }
