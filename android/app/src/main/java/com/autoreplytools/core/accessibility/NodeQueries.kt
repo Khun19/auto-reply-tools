@@ -8,4 +8,11 @@ data class NodeQuery(
     val enabled: Boolean? = null,
     val semanticTerms: Set<String> = emptySet(),
     val classNames: Set<String> = emptySet(),
-)
+    val minimumScore: Int = 1,
+    val maxNodes: Int = 1_000,
+) {
+    init {
+        require(minimumScore >= 0) { "minimumScore cannot be negative" }
+        require(maxNodes > 0) { "maxNodes must be greater than zero" }
+    }
+}

@@ -3,7 +3,7 @@ package com.autoreplytools.storage
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.enumPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.autoreplytools.core.model.AiProvider
@@ -16,15 +16,19 @@ private val Context.settingsDataStore by preferencesDataStore(name = "auto_reply
 class SettingsRepository(private val context: Context) {
     private object Keys {
         val enabled = booleanPreferencesKey("enabled")
-        val aiProvider = enumPreferencesKey<AiProvider>("ai_provider")
-        val systemPrompt = androidx.datastore.preferences.core.stringPreferencesKey("system_prompt")
+        val aiProvider = stringPreferencesKey("ai_provider")
+        val systemPrompt = stringPreferencesKey("system_prompt")
         val whitelist = stringSetPreferencesKey("whitelist")
     }
 
     val settings: Flow<AppSettings> = context.settingsDataStore.data.map { preferences ->
+        val provider = preferences[Keys.aiProvider]?.let { value ->
+            runCatching { AiProvider.valueOf(value) }.getOrDefault(AiProvider.CHATGPT)
+        } ?: AiProvider.CHATGPT
+
         AppSettings(
             enabled = preferences[Keys.enabled] ?: false,
-            aiProvider = preferences[Keys.aiProvider] ?: AiProvider.CHATGPT,
+            aiProvider = provider,
             systemPrompt = preferences[Keys.systemPrompt] ?: AppSettings().systemPrompt,
             whitelist = preferences[Keys.whitelist] ?: emptySet(),
         )

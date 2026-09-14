@@ -35,6 +35,7 @@ class ViberAdapter : AppAdapter {
                 enabled = true,
                 semanticTerms = setOf("message", "type", "write"),
                 classNames = setOf("android.widget.EditText"),
+                minimumScore = 60,
             ),
         )
 
@@ -47,6 +48,7 @@ class ViberAdapter : AppAdapter {
                 visible = true,
                 enabled = true,
                 semanticTerms = setOf("send", "message"),
+                minimumScore = 55,
             ),
         )
 }
