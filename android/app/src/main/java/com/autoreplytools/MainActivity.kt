@@ -6,10 +6,12 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -17,12 +19,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.autoreplytools.core.RuntimeContainer
+import com.autoreplytools.core.model.AiProvider
 import com.autoreplytools.core.model.AutomationState
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var enableSwitch: Switch
+    private lateinit var providerSpinner: Spinner
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +58,30 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch { RuntimeContainer.settingsRepository.setEnabled(checked) }
             }
         }
+        val providerLabel = TextView(this).apply {
+            text = "AI Provider"
+            textSize = 16f
+        }
+        providerSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_spinner_item,
+                AiProvider.values().map { it.displayName },
+            ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?,
+                    view: android.view.View?,
+                    position: Int,
+                    id: Long,
+                ) {
+                    val provider = AiProvider.values()[position]
+                    lifecycleScope.launch { RuntimeContainer.settingsRepository.setAiProvider(provider) }
+                }
+
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+            }
+        }
         val senderInput = EditText(this).apply {
             hint = "Allowed Viber sender"
             inputType = android.text.InputType.TYPE_CLASS_TEXT
@@ -83,7 +111,7 @@ class MainActivity : AppCompatActivity() {
             text = "Resume automation"
             setOnClickListener { RuntimeContainer.engine.resume() }
         }
-        listOf(title, statusText, enableSwitch, senderInput, addSender, accessibility, notifications, stop, resume)
+        listOf(title, statusText, enableSwitch, providerLabel, providerSpinner, senderInput, addSender, accessibility, notifications, stop, resume)
             .forEach { view ->
                 content.addView(
                     view,
@@ -107,9 +135,19 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     RuntimeContainer.settingsRepository.settings.collect { settings ->
                         if (enableSwitch.isChecked != settings.enabled) enableSwitch.isChecked = settings.enabled
+                        val position = AiProvider.values().indexOf(settings.aiProvider)
+                        if (position >= 0 && providerSpinner.selectedItemPosition != position) {
+                            providerSpinner.setSelection(position)
+                        }
                     }
                 }
             }
         }
     }
+
+    private val AiProvider.displayName: String
+        get() = when (this) {
+            AiProvider.CHATGPT -> "ChatGPT"
+            AiProvider.GEMINI -> "Gemini"
+        }
 }
