@@ -38,6 +38,10 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[Keys.enabled] = enabled }
     }
 
+    suspend fun setAiProvider(provider: AiProvider) {
+        context.settingsDataStore.edit { it[Keys.aiProvider] = provider.name }
+    }
+
     suspend fun addWhitelistSender(sender: String) {
         val normalized = sender.trim()
         if (normalized.isEmpty()) return
