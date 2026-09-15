@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var enableSwitch: Switch
     private lateinit var providerSpinner: Spinner
+    private var providerInitialized = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,18 +70,19 @@ class MainActivity : AppCompatActivity() {
                 android.R.layout.simple_spinner_item,
                 AiProvider.values().map { it.displayName },
             ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(
-                    parent: android.widget.AdapterView<*>?,
+                    parent: AdapterView<*>?,
                     view: android.view.View?,
                     position: Int,
                     id: Long,
                 ) {
+                    if (!providerInitialized) return
                     val provider = AiProvider.values()[position]
                     lifecycleScope.launch { RuntimeContainer.settingsRepository.setAiProvider(provider) }
                 }
 
-                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+                override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             }
         }
         val senderInput = EditText(this).apply {
@@ -139,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                         if (position >= 0 && providerSpinner.selectedItemPosition != position) {
                             providerSpinner.setSelection(position)
                         }
+                        providerInitialized = true
                     }
                 }
             }
