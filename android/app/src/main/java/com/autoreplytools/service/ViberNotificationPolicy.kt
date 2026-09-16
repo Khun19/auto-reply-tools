@@ -20,15 +20,21 @@ object ViberNotificationPolicy {
     )
 
     fun accept(input: Input): Accepted? {
-        if (input.packageName != VIBER_PACKAGE) return null
+        if (!input.packageName.equals(VIBER_PACKAGE, ignoreCase = true)) return null
         if (input.isGroupSummary) return null
 
-        val sender = input.sender?.takeIf { it.isNotBlank() } ?: return null
-        val message = (input.bigText ?: input.text)?.takeIf { it.isNotBlank() } ?: return null
+        val message = (input.bigText ?: input.text)
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+
+        // Viber can expose the notification title as the conversation title.
+        // Keep a safe fallback so a valid Viber notification is not discarded
+        // only because EXTRA_TITLE is missing on a particular Android/MIUI build.
+        val sender = input.sender?.trim()?.takeIf { it.isNotBlank() } ?: "Viber"
 
         return Accepted(
             sender = sender,
-            message = message,
+            message = message.trim(),
             conversationId = input.conversationId,
         )
     }
