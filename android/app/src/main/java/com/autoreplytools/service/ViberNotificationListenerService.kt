@@ -32,6 +32,10 @@ class ViberNotificationListenerService : NotificationListenerService() {
             ),
         ) ?: return
 
+        scope.launch {
+            RuntimeContainer.settingsRepository.recordRecentViberSender(accepted.sender)
+        }
+
         val task = AutomationTask(
             taskId = UUID.randomUUID().toString(),
             sender = accepted.sender,
