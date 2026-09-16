@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var enableSwitch: Switch
+    private lateinit var whitelistContainer: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +68,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        val whitelistTitle = TextView(this).apply {
+            text = "Whitelisted Viber senders"
+            textSize = 18f
+            setTextColor(Color.rgb(20, 50, 45))
+            setPadding(0, padding / 3, 0, padding / 6)
+        }
+        whitelistContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
         val accessibility = Button(this).apply {
             text = "Open Accessibility settings"
             setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
@@ -83,7 +93,7 @@ class MainActivity : AppCompatActivity() {
             text = "Resume automation"
             setOnClickListener { RuntimeContainer.engine.resume() }
         }
-        listOf(title, statusText, enableSwitch, senderInput, addSender, accessibility, notifications, stop, resume)
+        listOf(title, statusText, enableSwitch, senderInput, addSender, whitelistTitle, whitelistContainer, accessibility, notifications, stop, resume)
             .forEach { view ->
                 content.addView(
                     view,
@@ -107,9 +117,44 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     RuntimeContainer.settingsRepository.settings.collect { settings ->
                         if (enableSwitch.isChecked != settings.enabled) enableSwitch.isChecked = settings.enabled
+                        renderWhitelist(settings.whitelist)
                     }
                 }
             }
+        }
+    }
+
+    private fun renderWhitelist(senders: Set<String>) {
+        whitelistContainer.removeAllViews()
+        if (senders.isEmpty()) {
+            whitelistContainer.addView(TextView(this).apply {
+                text = "No senders added"
+                setTextColor(Color.DKGRAY)
+            })
+            return
+        }
+
+        senders.toList().sorted().forEach { sender ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            val name = TextView(this).apply {
+                text = sender
+                textSize = 16f
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            val remove = Button(this).apply {
+                text = "Remove"
+                setOnClickListener {
+                    lifecycleScope.launch {
+                        RuntimeContainer.settingsRepository.removeWhitelistSender(sender)
+                    }
+                }
+            }
+            row.addView(name)
+            row.addView(remove)
+            whitelistContainer.addView(row)
         }
     }
 }
