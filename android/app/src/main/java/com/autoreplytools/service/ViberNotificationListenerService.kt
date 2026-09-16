@@ -17,9 +17,20 @@ class ViberNotificationListenerService : NotificationListenerService() {
     private val logger = AppLogger("ViberNotification")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        logger.info("Notification listener connected")
+    }
+
     override fun onNotificationPosted(statusBarNotification: StatusBarNotification) {
+        if (!statusBarNotification.packageName.equals(ViberNotificationPolicy.VIBER_PACKAGE, ignoreCase = true)) {
+            return
+        }
+
         val notification = statusBarNotification.notification ?: return
         val extras = notification.extras
+        logger.info("Viber notification received")
+
         val accepted = ViberNotificationPolicy.accept(
             ViberNotificationPolicy.Input(
                 packageName = statusBarNotification.packageName,
@@ -30,7 +41,14 @@ class ViberNotificationListenerService : NotificationListenerService() {
                 text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
                 conversationId = extras.getString(Notification.EXTRA_CONVERSATION_TITLE),
             ),
-        ) ?: return
+        )
+
+        if (accepted == null) {
+            logger.info("Viber notification rejected: no usable message payload")
+            return
+        }
+
+        logger.info("Viber message captured from ${accepted.sender}")
 
         val task = AutomationTask(
             taskId = UUID.randomUUID().toString(),
@@ -42,12 +60,26 @@ class ViberNotificationListenerService : NotificationListenerService() {
             targetAiProvider = AiProvider.CHATGPT,
             conversationIntent = notification.contentIntent,
         )
+
         scope.launch {
-            if (!RuntimeContainer.engine.enqueue(task)) {
-                logger.info("Viber notification ignored by safety filters")
+            runCatching {
+                RuntimeContainer.initialize(applicationContext)
+                RuntimeContainer.engine.start()
+                RuntimeContainer.engine.enqueue(task)
+            }.onSuccess { acceptedByEngine ->
+                if (!acceptedByEngine) {
+                    logger.info("Viber message captured but blocked by app settings/whitelist/duplicate guard")
+                }
+            }.onFailure { error ->
+                logger.error("Failed to enqueue Viber message", error)
             }
         }
     }
 
     override fun onNotificationRemoved(statusBarNotification: StatusBarNotification) = Unit
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
 }
