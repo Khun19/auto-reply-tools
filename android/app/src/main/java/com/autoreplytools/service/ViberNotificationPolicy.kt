@@ -27,10 +27,10 @@ object ViberNotificationPolicy {
             ?.takeIf { it.isNotBlank() }
             ?: return null
 
-        // Viber can expose the notification title as the conversation title.
-        // Keep a safe fallback so a valid Viber notification is not discarded
-        // only because EXTRA_TITLE is missing on a particular Android/MIUI build.
-        val sender = input.sender?.trim()?.takeIf { it.isNotBlank() } ?: "Viber"
+        // A sender is required because whitelist matching must never fall back
+        // to a shared value such as "Viber". That would allow an ambiguous
+        // notification to be processed as an approved sender.
+        val sender = input.sender?.trim()?.takeIf { it.isNotBlank() } ?: return null
 
         return Accepted(
             sender = sender,

@@ -21,10 +21,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.autoreplytools.core.RuntimeContainer
 import com.autoreplytools.core.model.AiProvider
 import com.autoreplytools.core.model.AutomationState
+import com.autoreplytools.service.NotificationListenerStatus
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
+    private lateinit var notificationStatusText: TextView
     private lateinit var enableSwitch: Switch
     private lateinit var providerSpinner: Spinner
     private lateinit var whitelistContainer: LinearLayout
@@ -53,6 +55,10 @@ class MainActivity : AppCompatActivity() {
             text = "Status: IDLE"
             textSize = 16f
             setPadding(0, padding / 2, 0, padding / 2)
+        }
+        notificationStatusText = TextView(this).apply {
+            textSize = 16f
+            setPadding(0, 0, 0, padding / 2)
         }
         enableSwitch = Switch(this).apply {
             text = "Enable automatic replies"
@@ -109,7 +115,7 @@ class MainActivity : AppCompatActivity() {
         }
         val notifications = Button(this).apply {
             text = "Open Notification access settings"
-            setOnClickListener { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) }
+            setOnClickListener { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
         }
         val stop = Button(this).apply {
             text = "Emergency STOP"
@@ -119,7 +125,7 @@ class MainActivity : AppCompatActivity() {
             text = "Resume automation"
             setOnClickListener { RuntimeContainer.engine.resume() }
         }
-        listOf(title, statusText, enableSwitch, providerTitle, providerSpinner, senderInput, addSender, whitelistTitle, whitelistContainer, accessibility, notifications, stop, resume)
+        listOf(title, statusText, notificationStatusText, enableSwitch, providerTitle, providerSpinner, senderInput, addSender, whitelistTitle, whitelistContainer, accessibility, notifications, stop, resume)
             .forEach { view ->
                 content.addView(
                     view,
@@ -130,6 +136,14 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         return ScrollView(this).apply { addView(content) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::notificationStatusText.isInitialized) {
+            val state = if (NotificationListenerStatus.isEnabled(this)) "Enabled" else "Disabled"
+            notificationStatusText.text = "Notification listener: $state"
+        }
     }
 
     private fun observeState() {

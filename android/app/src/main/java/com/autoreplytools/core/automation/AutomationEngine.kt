@@ -79,7 +79,7 @@ class AutomationEngine(
         }
 
         val settings = settingsRepository.settings.first()
-        val aiAdapter = createAiAdapter(settings.aiProvider)
+        val aiAdapter = createAiAdapter(task.targetAiProvider)
         val viberAdapter = ViberAdapter()
         val overallSuccess = withTimeoutOrNull(timeouts.overallMs) {
             transition(AutomationState.VIBER_MSG_DETECTED)
