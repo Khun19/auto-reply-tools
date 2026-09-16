@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var enableSwitch: Switch
+    private lateinit var recentSendersContainer: LinearLayout
+    private lateinit var whitelistContainer: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,8 +56,29 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch { RuntimeContainer.settingsRepository.setEnabled(checked) }
             }
         }
+
+        val recentTitle = TextView(this).apply {
+            text = "Recent Viber chats"
+            textSize = 18f
+        }
+        recentSendersContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        val recentHint = TextView(this).apply {
+            text = "Senders appear here after a Viber notification is received. Tap a sender to add it to the whitelist."
+            textSize = 13f
+        }
+
+        val whitelistTitle = TextView(this).apply {
+            text = "Current whitelist"
+            textSize = 18f
+        }
+        whitelistContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
         val senderInput = EditText(this).apply {
-            hint = "Allowed Viber sender"
+            hint = "Add Viber sender manually"
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
         val addSender = Button(this).apply {
@@ -83,16 +106,31 @@ class MainActivity : AppCompatActivity() {
             text = "Resume automation"
             setOnClickListener { RuntimeContainer.engine.resume() }
         }
-        listOf(title, statusText, enableSwitch, senderInput, addSender, accessibility, notifications, stop, resume)
-            .forEach { view ->
-                content.addView(
-                    view,
-                    LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ).apply { bottomMargin = padding / 3 },
-                )
-            }
+
+        listOf(
+            title,
+            statusText,
+            enableSwitch,
+            recentTitle,
+            recentHint,
+            recentSendersContainer,
+            whitelistTitle,
+            whitelistContainer,
+            senderInput,
+            addSender,
+            accessibility,
+            notifications,
+            stop,
+            resume,
+        ).forEach { view ->
+            content.addView(
+                view,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ).apply { bottomMargin = padding / 3 },
+            )
+        }
         return ScrollView(this).apply { addView(content) }
     }
 
@@ -107,9 +145,47 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     RuntimeContainer.settingsRepository.settings.collect { settings ->
                         if (enableSwitch.isChecked != settings.enabled) enableSwitch.isChecked = settings.enabled
+                        renderWhitelist(settings.whitelist)
+                    }
+                }
+                launch {
+                    RuntimeContainer.settingsRepository.recentViberSenders.collect { senders ->
+                        renderRecentSenders(senders)
                     }
                 }
             }
+        }
+    }
+
+    private fun renderRecentSenders(senders: List<String>) {
+        recentSendersContainer.removeAllViews()
+        if (senders.isEmpty()) {
+            recentSendersContainer.addView(TextView(this).apply { text = "No recent Viber senders yet." })
+            return
+        }
+        senders.forEach { sender ->
+            recentSendersContainer.addView(Button(this).apply {
+                text = "＋ $sender"
+                setOnClickListener {
+                    lifecycleScope.launch { RuntimeContainer.settingsRepository.addWhitelistSender(sender) }
+                }
+            })
+        }
+    }
+
+    private fun renderWhitelist(senders: Set<String>) {
+        whitelistContainer.removeAllViews()
+        if (senders.isEmpty()) {
+            whitelistContainer.addView(TextView(this).apply { text = "Whitelist is empty." })
+            return
+        }
+        senders.sorted(String.CASE_INSENSITIVE_ORDER).forEach { sender ->
+            whitelistContainer.addView(Button(this).apply {
+                text = "✓ $sender   × Remove"
+                setOnClickListener {
+                    lifecycleScope.launch { RuntimeContainer.settingsRepository.removeWhitelistSender(sender) }
+                }
+            })
         }
     }
 }
