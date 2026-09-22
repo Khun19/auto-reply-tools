@@ -30,7 +30,7 @@ class SettingsRepository(private val context: Context) {
             enabled = preferences[Keys.enabled] ?: false,
             aiProvider = provider,
             systemPrompt = preferences[Keys.systemPrompt] ?: AppSettings().systemPrompt,
-            whitelist = preferences[Keys.whitelist] ?: emptySet(),
+            whitelist = normalizeWhitelist(preferences[Keys.whitelist] ?: emptySet()),
         )
     }
 
@@ -38,18 +38,33 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[Keys.enabled] = enabled }
     }
 
+    suspend fun setAiProvider(provider: AiProvider) {
+        context.settingsDataStore.edit { it[Keys.aiProvider] = provider.name }
+    }
+
     suspend fun addWhitelistSender(sender: String) {
-        val normalized = sender.trim()
+        val normalized = normalize(sender)
         if (normalized.isEmpty()) return
         context.settingsDataStore.edit { preferences ->
             val current = preferences[Keys.whitelist] ?: emptySet()
-            preferences[Keys.whitelist] = current + normalized
+            if (current.none { normalize(it) == normalized }) {
+                preferences[Keys.whitelist] = current + normalized
+            }
         }
     }
 
     suspend fun removeWhitelistSender(sender: String) {
+        val normalized = normalize(sender)
         context.settingsDataStore.edit { preferences ->
-            preferences[Keys.whitelist] = (preferences[Keys.whitelist] ?: emptySet()) - sender
+            preferences[Keys.whitelist] = (preferences[Keys.whitelist] ?: emptySet())
+                .filterNot { normalize(it) == normalized }
+                .toSet()
         }
     }
+
+    private fun normalizeWhitelist(values: Set<String>): Set<String> =
+        values.map(::normalize).filter(String::isNotEmpty).toSet()
+
+    private fun normalize(value: String): String =
+        value.trim().replace(Regex("\\s+"), " ").lowercase()
 }
